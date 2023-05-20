@@ -5,8 +5,6 @@
 
 void test1()
 {
-//watch: https://www.youtube.com/watch?v=I2EaVMjZRRY
-
     omp_set_num_threads(10); // this overrides the OMP_NUM_THREADS environment variable
 
     printf("Max number of threads: %d\n", omp_get_max_threads());
