@@ -40,7 +40,7 @@ void runParallel(int requestedNumThreads)
     // L1D$	192 KiB	6x32 KiB	8-way set associative (=lines/blocks per set)
     //  6 sets-> 32 KB is the size of the set! => 32KB/8 => 4KB
 
-//#define USEPAD
+    // #define USEPAD
 
 #ifdef USEPAD
 #define PAD 4096
@@ -90,6 +90,46 @@ void runParallel(int requestedNumThreads)
     printf("(parallel used %d threads) pi is equal to %lf in %lf seconds!\n", threadsCount, pi, tdata);
 }
 
+void runParallelWithSync(int requestedNumThreads)
+{
+
+//https://youtu.be/I2EaVMjZRRY?list=PLGj2a3KTwhRZ6uXoFt_rU5hzx0a5nHHGx&t=5630
+
+
+    // watch: https://www.youtube.com/watch?v=I2EaVMjZRRY
+    omp_set_num_threads(requestedNumThreads); // thread id from 0 to 17
+
+    static long steps = 100000000;
+
+    double pi = 0.0;
+
+    double step = 1.0 / (double)steps;
+    double tdata = omp_get_wtime();
+
+    int threadsCount = requestedNumThreads; // global variable to store the real number of threads
+
+#pragma omp parallel
+    {
+        int id = omp_get_thread_num();
+        int _threadsCount = omp_get_num_threads();
+        if (id == 0)
+            threadsCount = _threadsCount;
+
+        double s = 0.0;
+        for (int i = id; i < steps; i += _threadsCount)
+        {
+            double x = (i + 0.5) * step;
+            s += 4.0 / (1.0 + x * x);
+        }
+#pragma omp critical
+        pi += s * step;
+    }
+
+    tdata = omp_get_wtime() - tdata; // elapsed wall time
+
+    printf("(parallel2 used %d threads) pi is equal to %lf in %lf seconds!\n", threadsCount, pi, tdata);
+}
+
 int main(int argc, char *argv[])
 {
     // printf("THREADS: %d\n",omp_get_num_threads()); //will return 1 if outside!
@@ -114,7 +154,7 @@ int main(int argc, char *argv[])
     runSerial();
 
     for (int threads = 2; threads <= 30; threads += 2)
-        runParallel(threads);
+        runParallelWithSync(threads);
 
     return EXIT_SUCCESS;
 }
