@@ -29,11 +29,25 @@ void runSerial()
 
 void runParallel(int requestedNumThreads)
 {
+    // watch: https://www.youtube.com/watch?v=I2EaVMjZRRY
     omp_set_num_threads(requestedNumThreads); // thread id from 0 to 17
 
     static long steps = 100000000;
 
+    // assume 64 byte L1 cache line size
+    // https://www.cpu-world.com/CPUs/Core_i7/Intel-Core%20i7%20i7-9750H.html
+    // 6 x 32 KB 8-way set associative data caches
+    // L1D$	192 KiB	6x32 KiB	8-way set associative (=lines/blocks per set)
+    //  6 sets-> 32 KB is the size of the set! => 32KB/8 => 4KB
+
+//#define USEPAD
+
+#ifdef USEPAD
+#define PAD 4096
+    double sum[requestedNumThreads][PAD];
+#else
     double sum[requestedNumThreads];
+#endif
 
     double step = 1.0 / (double)steps;
     double tdata = omp_get_wtime();
@@ -47,16 +61,28 @@ void runParallel(int requestedNumThreads)
         if (id == 0)
             threadsCount = _threadsCount;
 
+#ifdef USEPAD
+        sum[id][0] = 0.0;
+#else
         sum[id] = 0.0;
+#endif
         for (int i = id; i < steps; i += _threadsCount)
         {
             double x = (i + 0.5) * step;
+#ifdef USEPAD
+            sum[id][0] += 4.0 / (1.0 + x * x);
+#else
             sum[id] += 4.0 / (1.0 + x * x);
+#endif
         }
     }
     double pi = 0.0;
     for (int i = 0; i < threadsCount; i++)
+#ifdef USEPAD
+        pi += sum[i][0];
+#else
         pi += sum[i];
+#endif
     pi *= step;
 
     tdata = omp_get_wtime() - tdata; // elapsed wall time
@@ -87,7 +113,7 @@ int main(int argc, char *argv[])
     */
     runSerial();
 
-    for (int threads = 2; threads <= 30; threads+=2)
+    for (int threads = 2; threads <= 30; threads += 2)
         runParallel(threads);
 
     return EXIT_SUCCESS;
